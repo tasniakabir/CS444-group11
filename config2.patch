@@ -1,0 +1,191 @@
+--- linux-yocto-3.19-original/block/Kconfig	2018-05-10 21:29:05.045131183 -0700
++++ linux-yocto-3.19/block/Kconfig	2018-05-10 23:28:42.596167200 -0700
+@@ -1,127 +1,78 @@
+-#
+-# Block layer core configuration
+-#
+-menuconfig BLOCK
+-       bool "Enable the block layer" if EXPERT
+-       default y
+-       help
+-	 Provide block layer support for the kernel.
+-
+-	 Disable this option to remove the block layer support from the
+-	 kernel. This may be useful for embedded devices.
+-
+-	 If this option is disabled:
+-
+-	   - block device files will become unusable
+-	   - some filesystems (such as ext3) will become unavailable.
+-
+-	 Also, SCSI character devices and USB storage will be disabled since
+-	 they make use of various block layer definitions and facilities.
+-
+-	 Say Y here unless you know you really don't want to mount disks and
+-	 suchlike.
+-
+ if BLOCK
+ 
+-config LBDAF
+-	bool "Support for large (2TB+) block devices and files"
+-	depends on !64BIT
+-	default y
+-	help
+-	  Enable block devices or files of size 2TB and larger.
+-
+-	  This option is required to support the full capacity of large
+-	  (2TB+) block devices, including RAID, disk, Network Block Device,
+-	  Logical Volume Manager (LVM) and loopback.
+-	
+-	  This option also enables support for single files larger than
+-	  2TB.
+-
+-	  The ext4 filesystem requires that this feature be enabled in
+-	  order to support filesystems that have the huge_file feature
+-	  enabled.  Otherwise, it will refuse to mount in the read-write
+-	  mode any filesystems that use the huge_file feature, which is
+-	  enabled by default by mke2fs.ext4.
++menu "IO Schedulers"
+ 
+-	  The GFS2 filesystem also requires this feature.
++config IOSCHED_SSTF
++    tristate "SSTF I/O Scheduler"
++    default y
++    ---help---
++        Figure it out yourself.
+ 
+-	  If unsure, say Y.
+-
+-config BLK_DEV_BSG
+-	bool "Block layer SG support v4"
++config IOSCHED_NOOP
++	bool
+ 	default y
+-	help
+-	  Saying Y here will enable generic SG (SCSI generic) v4 support
+-	  for any block device.
+-
+-	  Unlike SG v3 (aka block/scsi_ioctl.c drivers/scsi/sg.c), SG v4
+-	  can handle complicated SCSI commands: tagged variable length cdbs
+-	  with bidirectional data transfers and generic request/response
+-	  protocols (e.g. Task Management Functions and SMP in Serial
+-	  Attached SCSI).
+-
+-	  This option is required by recent UDEV versions to properly
+-	  access device serial numbers, etc.
+-
+-	  If unsure, say Y.
+-
+-config BLK_DEV_BSGLIB
+-	bool "Block layer SG support v4 helper lib"
+-	default n
+-	select BLK_DEV_BSG
+-	help
+-	  Subsystems will normally enable this if needed. Users will not
+-	  normally need to manually enable this.
++	---help---
++	  The no-op I/O scheduler is a minimal scheduler that does basic merging
++	  and sorting. Its main uses include non-disk based block devices like
++	  memory devices, and specialised software or hardware environments
++	  that do their own scheduling and require only minimal assistance from
++	  the kernel.
+ 
+-	  If unsure, say N.
++config IOSCHED_DEADLINE
++	tristate "Deadline I/O scheduler"
++	default y
++	---help---
++	  The deadline I/O scheduler is simple and compact. It will provide
++	  CSCAN service with FIFO expiration of requests, switching to
++	  a new point in the service tree and doing a batch of IO from there
++	  in case of expiry.
+ 
+-config BLK_DEV_INTEGRITY
+-	bool "Block layer data integrity support"
+-	select CRC_T10DIF if BLK_DEV_INTEGRITY
++config IOSCHED_CFQ
++	tristate "CFQ I/O scheduler"
++	default y
+ 	---help---
+-	Some storage devices allow extra information to be
+-	stored/retrieved to help protect the data.  The block layer
+-	data integrity option provides hooks which can be used by
+-	filesystems to ensure better data integrity.
+-
+-	Say yes here if you have a storage device that provides the
+-	T10/SCSI Data Integrity Field or the T13/ATA External Path
+-	Protection.  If in doubt, say N.
+-
+-config BLK_DEV_THROTTLING
+-	bool "Block layer bio throttling support"
+-	depends on BLK_CGROUP=y
++	  The CFQ I/O scheduler tries to distribute bandwidth equally
++	  among all processes in the system. It should provide a fair
++	  and low latency working environment, suitable for both desktop
++	  and server systems.
++
++	  This is the default I/O scheduler.
++
++config CFQ_GROUP_IOSCHED
++	bool "CFQ Group Scheduling support"
++	depends on IOSCHED_CFQ && BLK_CGROUP
+ 	default n
+ 	---help---
+-	Block layer bio throttling support. It can be used to limit
+-	the IO rate to a device. IO rate policies are per cgroup and
+-	one needs to mount and use blkio cgroup controller for creating
+-	cgroups and specifying per device IO rate policies.
+-
+-	See Documentation/cgroups/blkio-controller.txt for more information.
++	  Enable group IO scheduling in CFQ.
+ 
+-config BLK_CMDLINE_PARSER
+-	bool "Block device command line partition parser"
+-	default n
+-	---help---
+-	Enabling this option allows you to specify the partition layout from
+-	the kernel boot args.  This is typically of use for embedded devices
+-	which don't otherwise have any standardized method for listing the
+-	partitions on a block device.
++choice
++	prompt "Default I/O scheduler"
++	default DEFAULT_CFQ
++	help
++	  Select the I/O scheduler which will be used by default for all
++	  block devices.
+ 
+-	See Documentation/block/cmdline-partition.txt for more information.
++	config DEFAULT_DEADLINE
++		bool "Deadline" if IOSCHED_DEADLINE=y
+ 
+-menu "Partition Types"
++	config DEFAULT_CFQ
++		bool "CFQ" if IOSCHED_CFQ=y
+ 
+-source "block/partitions/Kconfig"
++	config DEFAULT_NOOP
++		bool "No-op"
++    
++    config DEFAULT_SSTF
++        bool "SSTF"
++
++endchoice
++
++config DEFAULT_IOSCHED
++	string
++	default "deadline" if DEFAULT_DEADLINE
++	default "cfq" if DEFAULT_CFQ
++	default "noop" if DEFAULT_NOOP
++    default "sstf" if DEFAULT_SSTF
+ 
+ endmenu
+ 
+-endif # BLOCK
+-
+-config BLOCK_COMPAT
+-	bool
+-	depends on BLOCK && COMPAT
+-	default y
+-
+-source block/Kconfig.iosched
++endif
