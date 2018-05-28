@@ -1,0 +1,16 @@
+--- originalFiles/Kconfig_original	2018-05-22 15:22:20.527077439 -0700
++++ newFiles/Kconfig	2018-05-22 15:40:48.415502879 -0700
+@@ -15,6 +15,13 @@
+ 
+ if BLK_DEV
+ 
++config BLK_DEV_SBD
++    tristate "Assignment 3 SBD Driver"
++    default m
++    depends on BLK_DEV_CRYPTOLOOP
++    ---help---
++      This is the device driver written for assignment 3.
++
+ config BLK_DEV_NULL_BLK
+ 	tristate "Null test block driver"
+ 
