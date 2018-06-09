@@ -1,0 +1,8 @@
+--- originalFiles/syscall_32.tbl	2018-06-07 16:02:17.488572000 -0700
++++ newFiles/syscall_32.tbl	2018-06-07 19:22:05.951224000 -0700
+@@ -365,3 +365,5 @@
+ 356	i386	memfd_create		sys_memfd_create
+ 357	i386	bpf			sys_bpf
+ 358	i386	execveat		sys_execveat			stub32_execveat
++359 i386  bf_slob_space_free  sys_bf_slob_space_free
++360 i386  bf_slob_space_used  sys_bf_slob_space_used

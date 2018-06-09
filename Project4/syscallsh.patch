@@ -1,0 +1,11 @@
+--- originalFiles/syscalls.h	2018-06-07 16:02:17.492864000 -0700
++++ newFiles/syscalls.h	2018-06-07 19:22:06.026992000 -0700
+@@ -882,4 +882,8 @@
+ 			const char __user *const __user *argv,
+ 			const char __user *const __user *envp, int flags);
+ 
++asmlinkage long sys_bf_slob_space_used(void);
++
++asmlinkage long sys_bf_slob_space_free(void);
++
+ #endif

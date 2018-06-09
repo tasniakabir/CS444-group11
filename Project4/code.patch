@@ -1,0 +1,127 @@
+--- originalFiles/slob.c	2018-06-07 16:02:17.478213000 -0700
++++ newFiles/slob.c	2018-06-07 19:22:05.847992000 -0700
+@@ -72,6 +72,10 @@
+ 
+ #include <linux/atomic.h>
+ 
++/*Added libraries for hw4*/
++#include <linux/linkage.h>
++#include <linux/syscalls.h>
++
+ #include "slab.h"
+ /*
+  * slob_block has a field 'units', which indicates size of block if +ve,
+@@ -87,6 +91,11 @@
+ typedef s32 slobidx_t;
+ #endif
+ 
++/*Added vars for HW4*/
++#define BEST_FIT
++int numberOfPages = 0;
++long freeSpace = 0;
++
+ struct slob_block {
+ 	slobidx_t units;
+ };
+@@ -265,6 +274,7 @@
+ /*
+  * slob_alloc: entry point into the slob allocator.
+  */
++ /*This function was adjusted for assign 4*/
+ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
+ {
+ 	struct page *sp;
+@@ -272,6 +282,8 @@
+ 	struct list_head *slob_list;
+ 	slob_t *b = NULL;
+ 	unsigned long flags;
++	struct page *sp_best_fit; //copy of SP for best fit
++	sp_best_fit = sp;
+ 
+ 	if (size < SLOB_BREAK1)
+ 		slob_list = &free_slob_small;
+@@ -294,21 +306,46 @@
+ 		/* Enough room on this page? */
+ 		if (sp->units < SLOB_UNITS(size))
+ 			continue;
+-
++/*Added best fit*/
++#ifdef BEST_FIT
++		//If SP is a better fit than the current best fit
++		if ( sp_best_fit->units > sp->units ){
++			sp_best_fit = sp;
++#else
+ 		/* Attempt to alloc */
+ 		prev = sp->lru.prev;
+ 		b = slob_page_alloc(sp, size, align);
+ 		if (!b)
+ 			continue;
+-
++#endif
+ 		/* Improve fragment distribution and reduce our average
+ 		 * search time by starting our next search here. (see
+ 		 * Knuth vol 1, sec 2.5, pg 449) */
+-		if (prev != slob_list->prev &&
+-				slob_list->next != prev->next)
+-			list_move_tail(slob_list, prev->next);
+-		break;
++		//Comment this out bc we added new code
++		//if (prev != slob_list->prev &&
++			//	slob_list->next != prev->next)
++			//list_move_tail(slob_list, prev->next);
++		//break;
+ 	}
++/*Added code for assign 4*/
++#ifdef BEST_FIT
++	b = slob_page_alloc(sp_best_fit, size, align);
++#endif
++
++//we need to compute the free space
++	list_for_each_entry(sp, &free_slob_small, lru){
++		freeSpace += sp->units;
++	}
++
++	list_for_each_entry(sp, &free_slob_medium, lru){
++		freeSpace += sp->units;
++	}
++
++	list_for_each_entry(sp, &free_slob_large, lru){
++		freeSpace += sp->units;
++	}
++
++
+ 	spin_unlock_irqrestore(&slob_lock, flags);
+ 
+ 	/* Not enough space: must allocate a new page */
+@@ -328,6 +365,7 @@
+ 		b = slob_page_alloc(sp, size, align);
+ 		BUG_ON(!b);
+ 		spin_unlock_irqrestore(&slob_lock, flags);
++		numberOfPages = numberOfPages + 1; //added to inc number of pages, cause alloc
+ 	}
+ 	if (unlikely((gfp & __GFP_ZERO) && b))
+ 		memset(b, 0, size);
+@@ -362,6 +400,7 @@
+ 		__ClearPageSlab(sp);
+ 		page_mapcount_reset(sp);
+ 		slob_free_pages(b, 0);
++		numberOfPages = numberOfPages + 1; //added to inc number of pages, cause alloc
+ 		return;
+ 	}
+ 
+@@ -630,6 +669,15 @@
+ 	.align = ARCH_KMALLOC_MINALIGN,
+ };
+ 
++/*Added linkages for freeing and using space for best fit*/
++asmlinkage long sys_bf_slob_space_used(void){
++	return SLOB_UNITS(PAGE_SIZE) * numberOfPages;
++}
++
++asmlinkage long sys_bf_slob_space_free(void){
++	return free_units;
++}
++
+ void __init kmem_cache_init(void)
+ {
+ 	kmem_cache = &kmem_cache_boot;
